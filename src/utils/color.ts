@@ -63,7 +63,11 @@ function generateHash(name: string): number {
 export function format(obj: RGBColor, type: 'hex' | 'rgb'): string {
   if (type === 'hex') {
     const hex = (n: number) => (n < 16 ? '0' : '') + n.toString(16)
-    return '#' + [hex(obj.r), hex(obj.g), hex(obj.b)].join('').toUpperCase()
+    const base = [hex(obj.r), hex(obj.g), hex(obj.b)]
+    // 8자리 hex(#RRGGBBAA, CSS Color 4 - 모든 현대 브라우저 지원)로 알파까지 표현한다.
+    // 값이 없거나 완전 불투명(1)이면 예전과 동일하게 6자리로 남긴다.
+    if (typeof obj.a !== 'undefined' && obj.a < 1) base.push(hex(Math.round(obj.a * 255)))
+    return '#' + base.join('').toUpperCase()
   }
 
   if (type === 'rgb') {
@@ -121,7 +125,9 @@ export function rgb(input: string | RGBColor): RGBColor {
       }
     }
 
-    return { r: arr[0] as number, g: arr[1] as number, b: arr[2] as number, a: 1 }
+    // 8자리(#RRGGBBAA)면 마지막 바이트를 알파(0~255 -> 0~1)로 되돌린다.
+    const a = arr.length > 3 ? (arr[3] as number) / 255 : 1
+    return { r: arr[0] as number, g: arr[1] as number, b: arr[2] as number, a }
   }
 
   return str as unknown as RGBColor

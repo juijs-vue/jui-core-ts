@@ -25,6 +25,12 @@ describe('utils/color', () => {
     expect(format({ r: 1, g: 2, b: 3, a: 0.5 }, 'rgb')).toBe('rgba(1,2,3,0.5)')
   })
 
+  test('formats/parses 8-digit hex with alpha (CSS Color 4)', () => {
+    expect(format({ r: 255, g: 0, b: 0, a: 0.5 }, 'hex')).toBe('#FF000080') // round(0.5*255)=128
+    expect(format({ r: 255, g: 0, b: 0, a: 1 }, 'hex')).toBe('#FF0000') // opaque stays 6-digit
+    expect(rgb('#FF000080')).toEqual({ r: 255, g: 0, b: 0, a: 128 / 255 })
+  })
+
   test('round-trips HSV<->RGB for pure red', () => {
     const hsv = RGBtoHSV(255, 0, 0)
     expect(hsv).toEqual({ h: 0, s: 1, v: 1 })
