@@ -1,3 +1,4 @@
+/** Comparator used by `QuickSort`: return `true` when `a` should sort before `b`. */
 export type CompareFn<T> = (a: T, b: T) => boolean
 
 /** In-place (or cloned) quicksort driven by a user-supplied comparator. */
@@ -5,14 +6,22 @@ export class QuickSort<T> {
   private array: T[]
   private compareFunc: CompareFn<T> | null = null
 
+  /** Wraps `array` for sorting. With `isClone: true`, sorts (and returns, from `run`) a shallow copy instead of mutating `array` itself. */
   constructor(array: T[], isClone = false) {
     this.array = isClone ? array.slice(0) : array
   }
 
+  /** Sets the comparator `run` uses to order elements. Must be called before `run`. */
   setCompare(func: CompareFn<T>): void {
     this.compareFunc = func
   }
 
+  /**
+   * Sorts the wrapped array (or the `[left, right]` sub-range, inclusive; defaults to the whole
+   * array) in place using the comparator set via `setCompare`, and returns it. Elements the
+   * comparator treats as equal are split between the pivot's two partitions based on their index's
+   * parity, rather than all landing on one side. Throws if `setCompare` hasn't been called.
+   */
   run(left?: number, right?: number): T[] {
     const l = typeof left === 'number' ? left : 0
     const r = typeof right === 'number' ? right : this.array.length - 1

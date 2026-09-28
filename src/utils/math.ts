@@ -1,13 +1,16 @@
+/** A 2D coordinate, as returned by `rotate`. */
 export interface Point2D {
   x: number
   y: number
 }
 
+/** A width/height pair, as returned by `resize`. */
 export interface Size2D {
   width: number
   height: number
 }
 
+/** A "nice" axis range, as returned by `nice`: `min`/`max` are the (possibly rounded) bounds, `range` is `max - min`, `spacing` is the tick interval. */
 export interface Range {
   min: number
   max: number
@@ -15,6 +18,7 @@ export interface Range {
   spacing: number
 }
 
+/** Callable rounding function returned by `fixed`, plus arithmetic operators fixed to the same decimal precision. */
 export interface FixedOp {
   (value: number): number
   plus(a: number, b: number): number
@@ -101,6 +105,7 @@ function inverseMatrix3d(me: number[][]): Float32Array[] {
   return te
 }
 
+/** Returns the larger of `a`'s and `b`'s decimal digit counts (e.g. `getFixed(1.5, 1.25)` -> `2`), used to pick a float-safe scaling power of 10 for `plus`/`minus`/`multi`/`div`/`remain`/`fixed`. */
 export function getFixed(a: number | string, b: number | string): number {
   const aLen = (String(a).split('.')[1] ?? '').length
   const bLen = (String(b).split('.')[1] ?? '').length
@@ -128,26 +133,31 @@ export function fixed(precision: number | string): FixedOp {
   return func
 }
 
+/** Rounds `num` to `digits` decimal places (standard `Math.round`-based rounding, not banker's rounding). */
 export function round(num: number, digits: number): number {
   const fixedNumber = Math.pow(10, digits)
   return Math.round(num * fixedNumber) / fixedNumber
 }
 
+/** Floating-point-safe addition: scales both operands by 10^`getFixed(a,b)` before adding, to avoid drift like `0.1 + 0.2 !== 0.3`. */
 export function plus(a: number, b: number): number {
   const pow = Math.pow(10, getFixed(a, b))
   return Math.round(a * pow + b * pow) / pow
 }
 
+/** Floating-point-safe subtraction; see `plus`. */
 export function minus(a: number, b: number): number {
   const pow = Math.pow(10, getFixed(a, b))
   return Math.round(a * pow - b * pow) / pow
 }
 
+/** Floating-point-safe multiplication; see `plus`. */
 export function multi(a: number, b: number): number {
   const pow = Math.pow(10, getFixed(a, b))
   return Math.round(a * pow * (b * pow)) / (pow * pow)
 }
 
+/** Floating-point-safe division; see `plus`. The result is additionally rounded to its own natural decimal precision. */
 export function div(a: number, b: number): number {
   const pow = Math.pow(10, getFixed(a, b))
   const result = (a * pow) / (b * pow)
@@ -155,23 +165,28 @@ export function div(a: number, b: number): number {
   return Math.round(result * pow2) / pow2
 }
 
+/** Floating-point-safe modulo (`a % b`); see `plus`. */
 export function remain(a: number, b: number): number {
   const pow = Math.pow(10, getFixed(a, b))
   return Math.round((a * pow) % (b * pow)) / pow
 }
 
+/** Converts degrees to radians. */
 export function radian(degree: number): number {
   return (degree * Math.PI) / 180
 }
 
+/** Converts radians to degrees. */
 export function degree(rad: number): number {
   return (rad * 180) / Math.PI
 }
 
+/** Angle (in radians, via `Math.atan2`) of the vector from `(x1,y1)` to `(x2,y2)`. */
 export function angle(x1: number, y1: number, x2: number, y2: number): number {
   return Math.atan2(y2 - y1, x2 - x1)
 }
 
+/** Rotates point `(x, y)` by `rad` radians around the origin. */
 export function rotate(x: number, y: number, rad: number): Point2D {
   return {
     x: x * Math.cos(rad) - y * Math.sin(rad),
@@ -179,6 +194,14 @@ export function rotate(x: number, y: number, rad: number): Point2D {
   }
 }
 
+/**
+ * Scales `(objectWidth, objectHeight)` down to fit within `(maxWidth, maxHeight)`, preserving
+ * aspect ratio, when the object overflows on width (and its ratio is portrait-or-square) or on
+ * height. Note the width-overflow branch scales the fitted height as `maxHeight * ratio` (not
+ * `maxWidth * ratio`) - equivalent only when `maxWidth === maxHeight`, so a non-square bounding
+ * box may not come out exactly aspect-preserving in that branch. If the object doesn't overflow
+ * either dimension, its original size is returned unchanged.
+ */
 export function resize(maxWidth: number, maxHeight: number, objectWidth: number, objectHeight: number): Size2D {
   const ratio = objectHeight / objectWidth
   let width = objectWidth
@@ -195,11 +218,13 @@ export function resize(maxWidth: number, maxHeight: number, objectWidth: number,
   return { width, height }
 }
 
+/** Builds a linear interpolator between `a` and `b`: the returned function maps `t` (typically 0..1) to `a + (b - a) * t`. */
 export function interpolateNumber(a: number, b: number): (t: number) => number {
   const dist = b - a
   return (t: number) => a + dist * t
 }
 
+/** Same as `interpolateNumber`, but rounds the result to the nearest integer. */
 export function interpolateRound(a: number, b: number): (t: number) => number {
   const dist = b - a
   return (t: number) => Math.round(a + dist * t)
@@ -243,6 +268,11 @@ export function nice(min: number, max: number, ticks: number, isNice = false): R
 // this dispatches to, which is legal here (distinct module-local bindings) the same way the
 // original's `self.matrix = function(a, b) {...}` object property didn't collide with its
 // same-named top-level closure helper.
+/**
+ * Multiplies matrix `a` by vector-or-matrix `b`: if `b` is a single vector (`number[]`), returns
+ * `a * b` as a vector; if `b` is itself a matrix (`number[][]`, treated as a list of column
+ * vectors), returns `a * b` as a matrix (applying `a` to each column of `b`).
+ */
 function matrixDispatch(a: number[][], b: number[] | number[][]): number[] | number[][] {
   if (Array.isArray(b[0])) {
     return deepMatrix(a, b as number[][])
@@ -251,6 +281,7 @@ function matrixDispatch(a: number[][], b: number[] | number[][]): number[] | num
   return matrix(a, b as number[])
 }
 
+/** 4x4-matrix analog of `matrix`: multiplies `a` by a single `Float32Array(4)` column, or by an array of them. */
 function matrix3dDispatch(a: number[][], b: Float32Array | Float32Array[]): Float32Array | Float32Array[] {
   if (Array.isArray(b) && (b[0] instanceof Array || b[0] instanceof Float32Array)) {
     return deepMatrix3d(a, b as Float32Array[])
@@ -259,12 +290,19 @@ function matrix3dDispatch(a: number[][], b: Float32Array | Float32Array[]): Floa
   return matrix3d(a, b as Float32Array)
 }
 
+/** Inverts a 4x4 matrix `a` (given as 4 row arrays). Falls back to the identity matrix if `a` is singular (determinant 0 or non-finite). */
 function inverseMatrix3dDispatch(a: number[][]): Float32Array[] {
   return inverseMatrix3d(a)
 }
 
 export { matrixDispatch as matrix, matrix3dDispatch as matrix3d, inverseMatrix3dDispatch as inverseMatrix3d }
 
+/**
+ * Linearly rescales `value` from the `[minValue, maxValue]` domain into `[minScale, maxScale]`.
+ * When `minValue === maxValue` (a zero-width domain), the domain's lower bound is treated as `0`
+ * instead - `value` is then positioned relative to `0..maxValue` rather than dividing by an
+ * exact-zero range. This still yields `NaN` if `maxValue` (and thus `minValue`) is itself `0`.
+ */
 export function scaleValue(value: number, minValue: number, maxValue: number, minScale: number, maxScale: number): number {
   const normalizedMin = minValue === maxValue ? 0 : minValue
   const range = maxScale - minScale

@@ -2,6 +2,7 @@ import { Base64 } from './base64.js'
 import { inArray } from './object.js'
 import { startsWith, endsWith } from './object.js'
 
+/** Options accepted by `dataToCsv2`. `names` renames columns in the header row (falling back to `fields[i]` when absent); `types` coerces each column's cell values; `count` overrides how many rows of `rows` are written (defaults to `rows.length`). */
 export interface CsvOptions {
   fields: string[]
   rows: Array<Record<string, unknown>>
@@ -106,12 +107,19 @@ export function csvToData(keys: string[], csv: string, csvNumber: string[] = [])
   return dataList
 }
 
+/**
+ * Resolves a column selection against the full `fields` list. If `csvFields` is given, each of
+ * its entries is either used literally (if it isn't a numeric string) or treated as an index into
+ * `fields` and replaced by the field name at that index (if it is). Without `csvFields`, `fields`
+ * itself is returned unchanged.
+ */
 export function getCsvFields(fields: string[], csvFields?: string[] | null): string[] {
   const list = Array.isArray(csvFields) ? csvFields.slice() : fields
 
   return list.map((f) => (isNaN(Number(f)) ? f : (fields[Number(f)] as string)))
 }
 
+/** Reads `file` as text (via `FileReader.readAsText`) and passes its contents to `callback` once loaded. */
 export function fileToCsv(file: File, callback: (content: string) => void): void {
   const reader = new FileReader()
 
@@ -122,10 +130,12 @@ export function fileToCsv(file: File, callback: (content: string) => void): void
   reader.readAsText(file)
 }
 
+/** Wraps CSV text as a downloadable `data:application/octet-stream;base64,...` URI. */
 export function csvToBase64(csv: string): string {
   return 'data:application/octet-stream;base64,' + Base64.encode(csv)
 }
 
+/** Wraps SVG markup as a `data:image/svg+xml;base64,...` URI, suitable for use as an `<img src>`. */
 export function svgToBase64(xml: string): string {
   return 'data:image/svg+xml;base64,' + Base64.encode(xml)
 }

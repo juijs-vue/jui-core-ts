@@ -2,19 +2,27 @@ import { typeCheck, template } from '../utils/index.js'
 import type { TypeName } from '../utils/typeCheck.js'
 import type { CompiledTemplate } from '../utils/template.js'
 
+/** Signature accepted by `UICore.on`/emitted-handler callbacks; `this` is bound to the `UICore` instance. */
 export type EventCallback = (...args: unknown[]) => unknown
 
+/**
+ * One registered handler entry, as pushed onto `UICore#event` by `on()`. `unique` is accepted
+ * for shape-fidelity with the legacy `core.js` event record but is never read anywhere in this
+ * class (or its callers) - it has no effect on `emit`/`off` behavior.
+ */
 export interface UIEventRecord {
   type: string
   callback: EventCallback
   unique?: boolean
 }
 
+/** Base option shape accepted by `UICore` and its subclasses; `event` is a map of event-type to handler, wired up in the constructor. */
 export interface UIOptions {
   event?: Record<string, EventCallback>
   [key: string]: unknown
 }
 
+/** Options accepted by `UICore#callDelay`: optional hooks to run before/after the wrapped method, and a millisecond delay before the original call runs. */
 export interface CallDelayOptions {
   delay?: number
   before?: (...args: unknown[]) => void
@@ -42,14 +50,22 @@ interface UICoreStatic {
  * a subclass's constructor - every instance of that subclass is affected.
  */
 export class UICore<TOptions extends UIOptions = UIOptions> {
+  /** Merged options for this instance: subclass-declared defaults (via `setup()`) overridden by constructor-supplied values. */
   options: TOptions
+  /** Named, compiled templates registered via `setTpl`, keyed by name. */
   tpl: Record<string, CompiledTemplate> = {}
+  /** Registered event handlers; mutated by `on`/`off`, read by `emit`. */
   event: UIEventRecord[] = []
 
+  /** Base default options for `UICore` itself: an empty `event` map. Subclasses override to declare their own defaults. */
   static setup(): UIOptions {
     return { event: {} }
   }
 
+  /**
+   * Merges `options` over every ancestor class's `setup()` defaults (see `mergeOptions`) and, if
+   * the resulting `options.event` map is non-empty, registers each entry as an event handler via `on`.
+   */
   constructor(options: Partial<TOptions> = {}) {
     this.options = UICore.mergeOptions(this.constructor as unknown as UICoreStatic, options)
 
@@ -97,6 +113,12 @@ export class UICore<TOptions extends UIOptions = UIOptions> {
     return merged as O
   }
 
+  /**
+   * Invokes every handler registered for `type` (case-insensitive), in registration order,
+   * passing `args` as its argument list (or as a single argument if `args` isn't an array).
+   * Returns whatever the *last* matching handler returned - earlier handlers' return values are
+   * discarded. Returns `undefined` (and calls nothing) if `type` isn't a string.
+   */
   emit(type: string, args?: unknown): unknown {
     if (!typeCheck('string', type)) return undefined
     let result: unknown
@@ -111,11 +133,17 @@ export class UICore<TOptions extends UIOptions = UIOptions> {
     return result
   }
 
+  /** Registers `callback` to run on `emit(type, ...)` (type matching is case-insensitive). Does nothing if `type`/`callback` are the wrong type. No de-duplication: registering the same pair twice runs it twice. */
   on(type: string, callback: EventCallback): void {
     if (!typeCheck('string', type) || !typeCheck('function', callback)) return
     this.event.push({ type: type.toLowerCase(), callback, unique: false })
   }
 
+  /**
+   * Removes registered handlers matching `typeOrCallback`: by exact callback reference if it's a
+   * function, or by event type (case-insensitive) if it's a string. Passing anything else removes
+   * nothing.
+   */
   off(typeOrCallback: string | EventCallback): void {
     this.event = this.event.filter((e) => {
       if (typeCheck('function', typeOrCallback)) return e.callback !== typeOrCallback
@@ -195,11 +223,13 @@ export class UICore<TOptions extends UIOptions = UIOptions> {
     }
   }
 
+  /** Compiles `html` (via `template`) and stores the result on `this.tpl[name]` for later rendering. */
   setTpl(name: string, html: string): void {
     const compiled = template(html)
     this.tpl[name] = typeof compiled === 'function' ? compiled : (() => compiled) as CompiledTemplate
   }
 
+  /** Updates `this.options`: merges `key` in when it's an object, otherwise sets the single `key`/`value` pair. */
   setOption(key: string | Partial<TOptions>, value?: unknown): void {
     if (typeCheck('object', key)) {
       Object.assign(this.options, key)
@@ -208,6 +238,7 @@ export class UICore<TOptions extends UIOptions = UIOptions> {
     }
   }
 
+  /** Clears all registered event handlers. Does not touch `options`/`tpl`, and prototype patches from `addValid`/`callBefore`/`callAfter`/`callDelay` are not undone. */
   destroy(): void {
     this.event = []
   }

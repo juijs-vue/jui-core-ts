@@ -105,6 +105,7 @@ export function btoa(input: string): string {
   return Base64.encode(input)
 }
 
+/** `util.base`-level alias for `Base64.decode`. */
 export function atob(input: string): string {
   return Base64.decode(input)
 }

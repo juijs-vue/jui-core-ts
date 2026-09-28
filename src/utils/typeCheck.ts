@@ -1,3 +1,9 @@
+/**
+ * Type names recognized by `typeCheck`. Note `'integer'`/`'float'` both require `typeof value ===
+ * 'number'` and are mutually exclusive based on `value % 1` (so `NaN`/`Infinity` match neither),
+ * while `'number'` matches any JS number regardless of fractional part. `'object'` excludes
+ * arrays, `Date`s, `RegExp`s, and `null`.
+ */
 export type TypeName =
   | 'string'
   | 'integer'

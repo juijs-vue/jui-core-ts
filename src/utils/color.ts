@@ -1,6 +1,7 @@
 import { plus } from './math.js'
 import { trim } from './object.js'
 
+/** An RGB(A) color; `r`/`g`/`b` are 0-255, `a` (when present) is 0-1. */
 export interface RGBColor {
   r: number
   g: number
@@ -8,17 +9,20 @@ export interface RGBColor {
   a?: number
 }
 
+/** An HSV color; `h` is degrees (0-360), `s`/`v` are 0-1. */
 export interface HSVColor {
   h: number
   s: number
   v: number
 }
 
+/** One SVG `<stop>` descriptor within a gradient, as produced by `parseStop`. */
 export interface GradientStop {
   type: 'stop'
   attr: Record<string, string | number>
 }
 
+/** SVG `<linearGradient>` coordinate attributes, as produced by `parseAttr('linear', ...)`. `direction` is only set for the named presets (`left`/`right`/`top`/... ), not for explicit numeric coordinates. */
 export interface LinearGradientAttr {
   x1: number | string
   y1: number | string
@@ -27,6 +31,7 @@ export interface LinearGradientAttr {
   direction?: string
 }
 
+/** SVG `<radialGradient>` coordinate attributes, as produced by `parseAttr('radial', ...)`. */
 export interface RadialGradientAttr {
   cx: number
   cy: number
@@ -35,6 +40,7 @@ export interface RadialGradientAttr {
   fy: number
 }
 
+/** Full descriptor for an SVG gradient element, as produced by `parseGradient`/`parse`. */
 export interface GradientDescriptor {
   type: 'linearGradient' | 'radialGradient'
   attr: LinearGradientAttr | RadialGradientAttr
@@ -60,6 +66,11 @@ function generateHash(name: string): number {
   return maxHash > 0 ? hash / maxHash : hash
 }
 
+/**
+ * Formats an `RGBColor` as a CSS color string: `'#RRGGBB'` (or `'#RRGGBBAA'` when `obj.a` is set
+ * and less than 1), or `'rgb(r,g,b)'`/`'rgba(r,g,b,a)'` for `type: 'rgb'`. Any other `type` falls
+ * through to `String(obj)`.
+ */
 export function format(obj: RGBColor, type: 'hex' | 'rgb'): string {
   if (type === 'hex') {
     const hex = (n: number) => (n < 16 ? '0' : '') + n.toString(16)
@@ -133,12 +144,22 @@ export function rgb(input: string | RGBColor): RGBColor {
   return str as unknown as RGBColor
 }
 
+/**
+ * A callable color interpolator between two endpoints set via `domain`. Calling it as
+ * `scale(t, type)` returns the color at position `t` (0 = start, 1 = end); `ticks(n)` samples it
+ * at `n` evenly spaced steps from 0 to (at least) 1.
+ */
 export interface ColorScale {
   (t: number, type?: 'hex' | 'rgb'): string
   domain(start: string, end: string): ColorScale
   ticks(n: number): string[]
 }
 
+/**
+ * Builds a two-color linear `ColorScale`. `domain(start, end)` must be called (with `rgb`-parsable
+ * color strings) before the scale or `ticks` can be used - the endpoints are otherwise left
+ * uninitialized.
+ */
 export function scale(): ColorScale {
   let startColor: RGBColor
   let endColor: RGBColor
@@ -175,6 +196,11 @@ export function scale(): ColorScale {
   return func
 }
 
+/**
+ * A callable color-map builder (see `map`) plus a set of well-known named palettes
+ * (`parula`/`jet`/`hsv`/`hot`/`pink`/`bone`/`copper`, matching common scientific/plotting
+ * colormaps), each returning `count` colors sampled across that palette.
+ */
 export interface ColorMapFn {
   (colorList: string[], count?: number): string[]
   parula(count?: number): string[]
@@ -186,6 +212,11 @@ export interface ColorMapFn {
   copper(count?: number): string[]
 }
 
+/**
+ * Builds a multi-stop color gradient: chains a `scale` between each consecutive pair of colors in
+ * `colorList` and samples `count` ticks per segment, concatenating the results (dropping the
+ * duplicate boundary color between segments). With a single-color `colorList`, returns `[]`.
+ */
 export const map = ((colorList: string[], count = 5) => {
   let colors: string[] = []
   const s = scale()
@@ -211,6 +242,7 @@ map.pink = (count) => map(['#1e0000', '#bd7b7b', '#e7e5b2', '#ffffff'], count)
 map.bone = (count) => map(['#000000', '#4a4a68', '#a6c6c6', '#ffffff'], count)
 map.copper = (count) => map(['#000000', '#3d2618', '#9d623e', '#ffa167', '#ffc77f'], count)
 
+/** Converts HSV (`H` in degrees 0-360, `S`/`V` in 0-1) to RGB (0-255, rounded up via `Math.ceil`). */
 export function HSVtoRGB(H: number, S: number, V: number): RGBColor {
   const hue = H === 360 ? 0 : H
   const C = S * V
@@ -232,6 +264,7 @@ export function HSVtoRGB(H: number, S: number, V: number): RGBColor {
   }
 }
 
+/** Converts RGB (0-255) to HSV (`h` in degrees 0-360, `s`/`v` in 0-1). Hue is `0` for any achromatic (gray) input. */
 export function RGBtoHSV(R: number, G: number, B: number): HSVColor {
   const R1 = R / 255
   const G1 = G / 255
@@ -255,6 +288,12 @@ export function RGBtoHSV(R: number, G: number, B: number): HSVColor {
   return { h: H, s: S, v: V }
 }
 
+/**
+ * Scales each of `color`'s first 3 hex byte channels (r/g/b) by `(1 + rate)`, clamped to
+ * `0..255`, and returns a new `#rrggbb` hex string. `color` may be given with or without a
+ * leading `#` (any non-hex-digit characters are stripped); an 8-digit `#rrggbbaa` input has its
+ * alpha byte ignored. A negative `rate` darkens instead - see `darken`.
+ */
 export function lighten(color: string, rate = 0): string {
   const cleaned = color.replace(/[^0-9a-f]/gi, '')
   const rgbParts: string[] = []
@@ -268,10 +307,19 @@ export function lighten(color: string, rate = 0): string {
   return '#' + rgbParts.join('')
 }
 
+/** `lighten(color, -rate)` - darkens `color` by `rate` instead of lightening it. */
 export function darken(color: string, rate = 0): string {
   return lighten(color, -rate)
 }
 
+/**
+ * Parses the coordinate portion of the `linear(...)`/`radial(...)` mini-syntax matched by
+ * `GRADIENT_REGEX` into SVG gradient attributes. For `type: 'linear'`, `str` may be one of the
+ * named presets (`''`/`'left'`/`'right'`/`'top'`/`'bottom'`/`'top left'`/`'top right'`/
+ * `'bottom left'`/`'bottom right'`) or a literal `"x1,y1,x2,y2"` list; for `'radial'`, `str` is
+ * always a literal `"cx,cy,r,fx,fy"` list. Numeric-looking components are parsed with
+ * `parseFloat`; components containing `%` are left as strings.
+ */
 export function parseAttr(type: string, str: string): LinearGradientAttr | RadialGradientAttr {
   if (type === 'linear') {
     switch (str) {
@@ -364,6 +412,11 @@ export function parseStop(stop: string): GradientStop[] {
   return stops
 }
 
+/**
+ * Parses a `"linear(<coords>)<stops>"`/`"radial(<coords>)<stops>"` gradient string (as used by
+ * JUI's chart/graph color options) into a `GradientDescriptor`. If `color` doesn't match that
+ * shape, it's returned unchanged (e.g. a plain `'#fff'` or `'red'` passes through as-is).
+ */
 export function parseGradient(color: string): GradientDescriptor | string {
   const matches = color.match(GRADIENT_REGEX)
   if (!matches) return color
@@ -375,6 +428,7 @@ export function parseGradient(color: string): GradientDescriptor | string {
   return { type: type === 'linear' ? 'linearGradient' : 'radialGradient', attr, children: stops }
 }
 
+/** Alias for `parseGradient`, kept for parity with the legacy `util.color.parse` name. */
 export function parse(color: string): GradientDescriptor | string {
   return parseGradient(color)
 }

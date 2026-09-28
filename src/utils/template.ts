@@ -1,3 +1,13 @@
+/**
+ * Overrides for `template`'s default `<! ... !>`/`<!= ... !>`/`<!- ... !>` delimiters.
+ * `evaluate` matches raw JS statements, `interpolate` matches an expression to insert unescaped.
+ * `escape` matches an expression whose value is passed through a call to `escape(...)` in the
+ * generated code - note this module never defines that `escape` function itself, so it resolves
+ * to whatever is in scope where the compiled function actually runs (in a browser, that's the
+ * global, deprecated `escape()` URI-encoding builtin, not HTML-entity escaping, unless something
+ * else has defined a global `escape`). `variable` names the single data parameter inside the
+ * compiled function body instead of destructuring it via `with(obj||{})`.
+ */
 export interface TemplateSettings {
   evaluate?: RegExp
   interpolate?: RegExp
@@ -5,6 +15,7 @@ export interface TemplateSettings {
   variable?: string
 }
 
+/** A template compiled by `template()` (when called without `data`): call it with a data object to render, or read `.source` for the generated function's source text. */
 export interface CompiledTemplate {
   (data?: unknown): string
   source: string

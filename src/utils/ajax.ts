@@ -1,5 +1,6 @@
 import { typeCheck } from './typeCheck.js'
 
+/** Options accepted by `ajax`. `success` fires once the request completes with HTTP 200; `fail` (if given) fires on any other status. */
 export interface AjaxOptions {
   url: string
   type?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'

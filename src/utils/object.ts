@@ -109,10 +109,12 @@ export function inArray<T>(target: T, list: T[]): number {
   return -1
 }
 
+/** Equivalent to the native `String.prototype.startsWith`: true if `str` has `searchString` starting exactly at `position` (default `0`). */
 export function startsWith(str: string, searchString: string, position = 0): boolean {
   return str.lastIndexOf(searchString, position) === position
 }
 
+/** Equivalent to the native `String.prototype.endsWith`: true if `str` (or its prefix ending at `position`, when given) ends with `searchString`. */
 export function endsWith(str: string, searchString: string, position?: number): boolean {
   const pos = position === undefined || position > str.length ? str.length : position
   const start = pos - searchString.length

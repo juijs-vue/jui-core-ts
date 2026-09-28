@@ -1,8 +1,10 @@
+/** An element's position (in px) relative to the document, as returned by `offset`. */
 export interface Offset {
   top: number
   left: number
 }
 
+/** Queries `document` (or `root`, when given) with a CSS `selector` and returns the matched elements. */
 export function find(selector: string): NodeListOf<Element>
 export function find(root: ParentNode, selector: string): NodeListOf<Element>
 export function find(a: string | ParentNode, b?: string): NodeListOf<Element> | [] {
@@ -11,6 +13,11 @@ export function find(a: string | ParentNode, b?: string): NodeListOf<Element> | 
   return []
 }
 
+/**
+ * Iterates `selectorOrElements` (a CSS selector resolved against `document`, or an already-
+ * resolved element collection), invoking `callback(index, el)` for each with `this` bound to
+ * `el`.
+ */
 export function each(
   selectorOrElements: string | Element[] | NodeListOf<Element>,
   callback: (this: Element, index: number, el: Element) => void
@@ -22,6 +29,11 @@ export function each(
   })
 }
 
+/**
+ * Sets one or more attributes (from `attributes`) on every element matching `selector`, or -
+ * when called with a string `key` - reads that attribute off the *first* matched element only
+ * (`undefined` if nothing matches).
+ */
 export function attr(selector: string, attributes: Record<string, string>): void
 export function attr(selector: string, key: string): string | null | undefined
 export function attr(selector: string, keyOrAttributes: string | Record<string, string>): string | null | undefined | void {
@@ -39,12 +51,14 @@ export function attr(selector: string, keyOrAttributes: string | Record<string, 
   return elements.length > 0 ? elements[0]!.getAttribute(keyOrAttributes) : undefined
 }
 
+/** Removes every matched element (see `each` for how `selectorOrElements` is resolved) from its parent node. */
 export function remove(selectorOrElements: string | Element[] | NodeListOf<Element>): void {
   each(selectorOrElements, function () {
     this.parentNode?.removeChild(this)
   })
 }
 
+/** Computes `elem`'s position relative to the document (accounting for page scroll), jQuery-`.offset()`-style. Returns `undefined` if `elem` has no owner document. */
 export function offset(elem: Element | null | undefined): Offset | undefined {
   const doc = elem?.ownerDocument
   if (!doc) return undefined
